@@ -25,6 +25,7 @@ struct token {
 		int i;
 		char c;
 	};
+	token *prev;
 	token *next;
 };
 

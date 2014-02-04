@@ -30,6 +30,7 @@ static token *next_token(token *t) {
 		return NIL;
 	}
 
+	tn->prev = t;
 	t->next = tn;
 	return tn;
 }

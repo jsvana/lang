@@ -1,6 +1,9 @@
 #include "atom.h"
 #include "defines.h"
+#include "func.h"
 #include "lexer.h"
+#include "s_exp.h"
+#include "parser.h"
 
 #include <readline/readline.h>
 #include <stdio.h>
@@ -16,128 +19,7 @@
 #define STATE_HAS_ARG2 4
 #define STATE_HAS_CLOSE_PAREN 5
 
-/* s_arg types */
-#define S_ARG_ATOM 0
-#define S_ARG_S_EXP 1
-
-/* Opcodes */
-#define OP_NIL 0
-#define OP_ADD 1
-#define OP_SUB 2
-#define OP_MUL 3
-#define OP_DIV 4
-
-/* s_exp_res types */
-#define S_EXP_RES_INT 0
-
-typedef struct s_exp s_exp;
-
-typedef struct s_arg s_arg;
-struct s_arg {
-	int type;
-	union {
-		atom *a;
-		s_exp *s;
-	};
-};
-
-struct s_exp {
-	int opcode;
-	s_arg arg1;
-	s_arg arg2;
-	s_exp *next;
-};
-
-typedef struct s_exp_res s_exp_res;
-struct s_exp_res {
-	int type;
-	union {
-		int i;
-	};
-};
-
-s_exp *s_exp_create() {
-	s_exp *s = malloc(sizeof(s_exp));
-	if (!s) {
-		return NIL;
-	}
-
-	s->opcode = OP_NIL;
-	s->next = NIL;
-
-	return s;
-}
-
-s_exp_res *s_exp_res_create() {
-	s_exp_res *sr = malloc(sizeof(s_exp_res));
-	return sr;
-}
-
-void compress_whitespace(char *input) {
-	if (!input) {
-		return;
-	}
-
-	// TODO: Eliminate newlines and tabs, compress spaces into one space
-}
-
-int get_op(char c) {
-	switch (c) {
-		case '+':
-			return OP_ADD;
-		case '-':
-			return OP_SUB;
-		case '*':
-			return OP_MUL;
-		case '/':
-			return OP_DIV;
-		default:
-			return OP_NIL;
-	}
-}
-
-char opcode_to_char(int opcode) {
-	switch (opcode) {
-		case OP_ADD:
-			return '+';
-		case OP_SUB:
-			return '-';
-		case OP_MUL:
-			return '*';
-		case OP_DIV:
-			return '/';
-		default:
-			return '?';
-	}
-}
-
-void print_s_exp(s_exp *s) {
-	if (!s) {
-		return;
-	}
-
-	printf("(%c", opcode_to_char(s->opcode));
-	fflush(stdout);
-
-	printf(" [%d]", s->arg1.type);
-	if (s->arg1.type == S_ARG_ATOM) {
-		printf(" %d", s->arg1.a->i);
-	} else {
-		printf(" ");
-		print_s_exp(s->arg1.s);
-	}
-
-	printf(" [%d]", s->arg2.type);
-	if (s->arg2.type == S_ARG_ATOM) {
-		printf(" %d", s->arg2.a->i);
-	} else {
-		printf(" ");
-		print_s_exp(s->arg2.s);
-	}
-
-	printf(")");
-}
-
+/*
 char *parse_input(char *input, s_exp *s) {
 	int parse_state = STATE_NIL;
 
@@ -181,7 +63,7 @@ char *parse_input(char *input, s_exp *s) {
 					return NIL;
 				}
 				parse_state = STATE_HAS_OP;
-				s->opcode = get_op(c);
+				//s->opcode = //get_op(c);
 				break;
 			case '0':
 			case '1':
@@ -278,11 +160,67 @@ s_exp_res *eval_s_exp(s_exp *s) {
 
 	return ret;
 }
+*/
+
+func_ret *cadd(void *args) {
+	func_ret *ret = func_ret_create();
+	if (!ret) {
+		return NIL;
+	}
+
+	if (!args) {
+		return ret;
+	}
+
+	int *iargs = args;
+	ret->type = FUNC_RET_INT;
+	ret->i = 0;
+	for (int i = 1; i < iargs[0] + 1; i++) {
+		ret->i += iargs[i];
+	}
+
+	return ret;
+}
+
+func_ret *csub(void *args) {
+	return NIL;
+}
+
+func_ret *cmul(void *args) {
+	return NIL;
+}
+
+func_ret *cdiv(void *args) {
+	return NIL;
+}
+
+void env_bootstrap(env *e) {
+	if (!e) {
+		return;
+	}
+
+	env_add_cfunc(e, "+", &cadd);
+	env_add_cfunc(e, "-", &csub);
+	env_add_cfunc(e, "*", &cmul);
+	env_add_cfunc(e, "/", &cdiv);
+}
 
 int main(int argc, char **argv) {
 	int running = TRUE;
 
 	using_history();
+
+	env *e = env_create();
+
+	env_bootstrap(e);
+
+	int args[] = { 5, 1, 2, 3, 4, 5 };
+	func_ret *r = ccall(e, "+", args);
+	if (r && r->type == FUNC_RET_INT) {
+		printf("res: %d\n", r->i);
+	} else {
+		printf("oh noes\n");
+	}
 
 	while (running) {
 		char *input = readline(PROMPT);
