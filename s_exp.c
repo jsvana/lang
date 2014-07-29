@@ -28,6 +28,55 @@ s_exp_res *s_exp_res_create() {
 	return sr;
 }
 
+s_arg *s_arg_create() {
+	s_arg *sa = malloc(sizeof(s_arg));
+	if (!sa) {
+		return NIL;
+	}
+
+	sa->type = S_ARG_NIL;
+
+	return sa;
+}
+
+s_arg *s_arg_set_var(s_arg *sa, const char *name) {
+	if (!sa || !name) {
+		return NIL;
+	}
+
+	if (sa->type != S_ARG_NIL) {
+		if (sa->type == S_ARG_ATOM) {
+			free(sa->a);
+		} else if (sa->type == S_ARG_S_EXP) {
+			// TODO: Free s_exp
+		} else if (sa->type == S_ARG_VAR) {
+			free(sa->v);
+		}
+	}
+
+	sa->type = S_ARG_VAR;
+	sa->v = malloc(sizeof(char) * (strlen(name) + 1));
+	if (!sa->v) {
+		free(sa);
+		return NIL;
+	}
+
+	strcpy(sa->v, name);
+
+	return sa;
+}
+
+symbol *symbol_create() {
+	symbol *s = malloc(sizeof(symbol));
+	if (!s) {
+		return NIL;
+	}
+
+	s->type = SYMBOL_NIL;
+
+	return s;
+}
+
 env *env_create() {
 	env *e = malloc(sizeof(env));
 	if (!e) {
@@ -40,7 +89,14 @@ env *env_create() {
 		return NIL;
 	}
 
-	e->func_count = 0;
+	e->size = 0;
+	e->cap = 8;
+	e->symbols = malloc(sizeof(symbol) * e->cap);
+	if (!e->symbols) {
+		free(e->root);
+		free(e);
+		return NIL;
+	}
 
 	return e;
 }
@@ -50,15 +106,27 @@ void env_add_cfunc(env *e, const char *name, cfunc *f) {
 		return;
 	}
 
-	if (e->func_count == FUNC_TABLE_SIZE) {
-		return;
+	if (e->size == e->cap) {
+		// Resize
+		e->cap *= 2;
+		e->symbols = reallocf(e->symbols, sizeof(symbol) * e->cap);
+		if (!e->symbols) {
+			free(e->root);
+			free(e);
+			return;
+		}
 	}
 
-	e->funcs[e->func_count].type = FUNC_C;
-	e->funcs[e->func_count].c = f;
-	func_set_name(&(e->funcs[e->func_count]), name);
+	e->symbols[e->size].type = SYMBOL_FUNC;
+	e->symbols[e->size].f = func_create();
+	if (!e->symbols[e->size].f) {
+		return;
+	}
+	e->symbols[e->size].f->type = FUNC_C;
+	e->symbols[e->size].f->c = f;
+	func_set_name(e->symbols[e->size].f, name);
 
-	++e->func_count;
+	++e->size;
 }
 
 void env_add_lfunc(env *e, const char *name, s_exp *l) {
@@ -66,15 +134,27 @@ void env_add_lfunc(env *e, const char *name, s_exp *l) {
 		return;
 	}
 
-	if (e->func_count == FUNC_TABLE_SIZE) {
-		return;
+	if (e->size == e->cap) {
+		// Resize
+		e->cap *= 2;
+		e->symbols = reallocf(e->symbols, sizeof(symbol) * e->cap);
+		if (!e->symbols) {
+			free(e->root);
+			free(e);
+			return;
+		}
 	}
 
-	e->funcs[e->func_count].type = FUNC_L;
-	e->funcs[e->func_count].s = l;
-	func_set_name(&(e->funcs[e->func_count]), name);
+	e->symbols[e->size].type = SYMBOL_FUNC;
+	e->symbols[e->size].f = func_create();
+	if (!e->symbols[e->size].f) {
+		return;
+	}
+	e->symbols[e->size].f->type = FUNC_L;
+	e->symbols[e->size].f->s = l;
+	func_set_name(e->symbols[e->size].f, name);
 
-	++e->func_count;
+	++e->size;
 }
 
 func_ret *ccall(env *e, const char *func, void *args) {
@@ -83,8 +163,9 @@ func_ret *ccall(env *e, const char *func, void *args) {
 	}
 
 	int i;
-	for (i = 0; i < e->func_count; i++) {
-		if (e->funcs[i].type == FUNC_L && strcmp(e->funcs[i].name, func) == 0) {
+	for (i = 0; i < e->size; i++) {
+		// TODO: Switch to symbols
+		if (e->symbols[i].type == FUNC_L && strcmp(e->funcs[i].name, func) == 0) {
 			// TODO: Evaluate s_exp with given arguments
 			printf("Calling s_exp\n");
 			return NIL;
@@ -97,42 +178,12 @@ func_ret *ccall(env *e, const char *func, void *args) {
 	}
 }
 
-static int get_op(char c) {
-	switch (c) {
-		case '+':
-			return OP_ADD;
-		case '-':
-			return OP_SUB;
-		case '*':
-			return OP_MUL;
-		case '/':
-			return OP_DIV;
-		default:
-			return OP_NIL;
-	}
-}
-
-static char opcode_to_char(int opcode) {
-	switch (opcode) {
-		case OP_ADD:
-			return '+';
-		case OP_SUB:
-			return '-';
-		case OP_MUL:
-			return '*';
-		case OP_DIV:
-			return '/';
-		default:
-			return '?';
-	}
-}
-
 void print_s_exp(s_exp *s) {
 	if (!s) {
 		return;
 	}
 
-	printf("(%c", opcode_to_char(s->opcode));
+	//printf("(%c", opcode_to_char(s->opcode));
 	fflush(stdout);
 
 	s_arg *arg = s->args;

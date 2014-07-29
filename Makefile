@@ -3,7 +3,7 @@ CC=clang
 PROG=lang
 OBJS=main.o atom.o lexer.o parser.o s_exp.o func.o
 
-CFLAGS=-ggdb
+CFLAGS=-ggdb -DGNU_SOURCE
 LIBS=-lreadline
 
 all: $(PROG)

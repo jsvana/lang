@@ -43,55 +43,6 @@ int next_token_is(token *t, int type) {
 	return t->type == type;
 }
 
-char *token_get_str(token *t) {
-	if (!t) {
-		return NIL;
-	}
-
-	int capacity = 8, i = 0;
-	token *iter = t;
-
-	char *s = malloc(sizeof(char) * capacity);
-	if (!s) {
-		return NIL;
-	}
-
-	while (iter && iter->type == TOKEN_CHAR && iter->c != CHAR_NIL) {
-		if (i == capacity) {
-			capacity <<= 1;
-			s = reallocf(s, sizeof(char) * capacity);
-			if (!s) {
-				return NIL;
-			}
-		}
-
-		s[i] = iter->c;
-		++i;
-		iter = iter->next;
-	}
-
-	return s;
-}
-
-int token_streq(token *t, const char *str) {
-	if (!t || !str) {
-		return FALSE;
-	}
-
-	int i = 0, len = strlen(str);
-	token *iter = t;
-
-	while (iter && iter->type == TOKEN_CHAR && i < len) {
-		if (str[i] != iter->c) {
-			return FALSE;
-		}
-		++i;
-		iter = iter->next;
-	}
-
-	return i == len;
-}
-
 void token_print(token *t) {
 	if (!t) {
 		return;
@@ -100,27 +51,14 @@ void token_print(token *t) {
 	while (t) {
 		if (t->type == TOKEN_INT) {
 			printf(" %d", t->i);
-		} else if (t->type == TOKEN_CHAR) {
-			if (t->c == CHAR_NIL) {
-				printf(" \\0");
-			} else {
-				printf(" %c", t->c);
-			}
+		} else if (t->type == TOKEN_STRING) {
+			printf(" %s", string_to_cstr(t->s));
 		} else if (t->type == TOKEN_L_PAREN) {
 			printf(" (");
 		} else if (t->type == TOKEN_R_PAREN) {
 			printf(" )");
-		} else if (t->type == TOKEN_OP_PLUS) {
-			printf(" +");
-		} else if (t->type == TOKEN_OP_MINUS) {
-			printf(" -");
-		} else if (t->type == TOKEN_OP_SPLAT) {
-			printf(" *");
-		} else if (t->type == TOKEN_OP_SLASH) {
-			printf(" /");
-		} else if (t->type == TOKEN_OP_TICK) {
-			printf(" '");
 		}
+
 		t = t->next;
 	}
 	printf("\n");
@@ -165,6 +103,13 @@ token *lex(char *input) {
 				t = next_token(t);
 				input--;
 			}
+		} else if (t->type == TOKEN_STRING) {
+			if (isspace(c) || c == '(' || c == ')') {
+				t = next_token(t);
+				input--;
+			} else {
+				string_add_char(t->s, c);
+			}
 		} else {
 			if (c == '(') {
 				t->type = TOKEN_L_PAREN;
@@ -176,32 +121,15 @@ token *lex(char *input) {
 				t->type = TOKEN_INT;
 				num_digits = 0;
 				input--;
-			} else if (isalpha(c)) {
-				t->type = TOKEN_CHAR;
-				t->c = c;
+			} else if (isspace(c)) {
 				t = next_token(t);
-				if ((*(input + 1) && !isalpha(*(input + 1))) || !*(input + 1)) {
-					t->type = TOKEN_CHAR;
-					t->c = CHAR_NIL;
-					t = next_token(t);
+			} else {//if (isalpha(c)) {
+				t->type = TOKEN_STRING;
+				t->s = string_create();
+				if (!t->s) {
+					// TODO: Do something with error
 				}
-			} else if (c == '+') {
-				t->type = TOKEN_OP_PLUS;
-				t = next_token(t);
-			} else if (c == '-') {
-				t->type = TOKEN_OP_MINUS;
-				t = next_token(t);
-			} else if (c == '*') {
-				t->type = TOKEN_OP_SPLAT;
-				t = next_token(t);
-			} else if (c == '/') {
-				t->type = TOKEN_OP_SLASH;
-				t = next_token(t);
-			} else if (c == '\'') {
-				t->type = TOKEN_OP_TICK;
-				t = next_token(t);
-			} else {
-				/* Skip spaces */
+				string_add_char(t->s, c);
 			}
 		}
 		input++;

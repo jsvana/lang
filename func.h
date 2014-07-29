@@ -1,7 +1,5 @@
 #pragma once
 
-typedef struct s_exp s_exp;
-
 /* Function types */
 #define FUNC_NIL 0
 #define FUNC_C 1
@@ -19,7 +17,11 @@ struct func_ret {
 	};
 };
 
-typedef func_ret *(cfunc)(void *);
+typedef struct env env;
+typedef struct s_arg s_arg;
+typedef struct s_exp s_exp;
+
+typedef func_ret *(cfunc)(env *e, s_arg *);
 
 typedef struct func func;
 struct func {

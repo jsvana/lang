@@ -5,18 +5,18 @@
 #include "func.h"
 
 /* s_arg types */
-#define S_ARG_ATOM 0
-#define S_ARG_S_EXP 1
+#define S_ARG_NIL 0
+#define S_ARG_ATOM 1
+#define S_ARG_S_EXP 2
+#define S_ARG_VAR 3
 
 /* s_exp_res types */
 #define S_EXP_RES_INT 0
 
-/* Opcodes */
-#define OP_NIL 0
-#define OP_ADD 1
-#define OP_SUB 2
-#define OP_MUL 3
-#define OP_DIV 4
+/* Symbol types */
+#define SYMBOL_NIL 0
+#define SYMBOL_FUNC 1
+#define SYMBOL_VAR 2
 
 #define FUNC_TABLE_SIZE 256
 
@@ -26,7 +26,9 @@ struct s_arg {
 	union {
 		atom *a;
 		s_exp *s;
+		char *v;
 	};
+	s_arg *next;
 };
 
 struct s_exp {
@@ -36,11 +38,28 @@ struct s_exp {
 	s_exp *next;
 };
 
+typedef struct var var;
+struct var {
+	char *name;
+	atom *a;
+};
+
+typedef struct symbol symbol;
+struct symbol {
+	int type;
+	union {
+		atom *a;
+		func *f;
+	};
+};
+
 typedef struct env env;
 struct env {
 	s_exp *root;
-	func funcs[FUNC_TABLE_SIZE];
-	int func_count;
+	//func funcs[FUNC_TABLE_SIZE];
+	symbol *symbols;
+	int size;
+	int cap;
 };
 
 typedef struct s_exp_res s_exp_res;
@@ -55,6 +74,10 @@ struct s_exp_res {
 s_exp *s_exp_create();
 s_arg *s_arg_create();
 s_exp_res *s_exp_res_create();
+
+s_arg *s_arg_set_var(s_arg *sa, const char *name);
+
+symbol *symbol_create();
 
 env *env_create();
 
